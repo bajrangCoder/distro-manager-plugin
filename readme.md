@@ -21,6 +21,7 @@ Manage and install multiple Linux distributions in Acode easily through a beauti
   - ⚫ **Void Linux**
   - 🦎 **openSUSE Tumbleweed**
   - 🟢 **Manjaro**
+  - 🐉 **Kali Linux**
 
 ## How to Access
 
@@ -55,7 +56,7 @@ $FILES_DIR/
 
 | Distro | Package Manager | Example |
 |--------|-----------------|---------|
-| Ubuntu/Debian | apt | `apt update && apt install nodejs` |
+| Ubuntu/Debian/Kali | apt | `apt update && apt install nodejs` |
 | Arch/Manjaro | pacman | `pacman -S nodejs` |
 | Fedora | dnf | `dnf install nodejs` |
 | Void | xbps | `xbps-install nodejs` |
@@ -72,6 +73,7 @@ $FILES_DIR/
 | Void | ~51MB | ~160MB |
 | openSUSE | ~44MB | ~130MB |
 | Manjaro | ~141MB | ~430MB |
+| Kali | ~150MB | ~400MB |
 
 ## License
 

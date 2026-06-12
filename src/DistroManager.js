@@ -68,6 +68,47 @@ class DistroManager {
 		});
 	}
 
+	async resolveUrl(url, logger = console.log) {
+		if (url.includes("images.linuxcontainers.org")) {
+			logger("🔍 Resolving latest LXC image URL...");
+			const response = await new Promise((resolve, reject) => {
+				cordova.plugin.http.sendRequest(
+					url,
+					{
+						method: "GET",
+						responseType: "text",
+					},
+					resolve,
+					(err) =>
+						reject(
+							new Error(`Failed to fetch LXC directory: ${err.error || err}`),
+						),
+				);
+			});
+
+			if (response.status < 200 || response.status >= 300) {
+				throw new Error(
+					`Failed to fetch LXC directory: HTTP ${response.status}`,
+				);
+			}
+
+			const html = response.data;
+			const regex = /\d{8}_\d{2}:\d{2}\/?/g;
+			const matches = html.match(regex);
+
+			if (!matches || matches.length === 0) {
+				throw new Error(`No builds found in LXC directory listing: ${url}`);
+			}
+
+			// Sort alphabetically (chronologically) and get the latest
+			const latestDir = matches.sort().pop().replace(/\/$/, "");
+			const resolvedUrl = `${url}${latestDir}/rootfs.tar.xz`;
+			logger(`🔗 Resolved to: ${resolvedUrl}`);
+			return resolvedUrl;
+		}
+		return url;
+	}
+
 	getAvailableDistros() {
 		return Object.entries(DISTROS)
 			.filter(([_, distro]) => distro.urls[this.arch])
@@ -98,10 +139,12 @@ class DistroManager {
 			throw new Error(`Unknown distro: ${distroId}`);
 		}
 
-		const url = distro.urls[this.arch];
+		let url = distro.urls[this.arch];
 		if (!url) {
 			throw new Error(`Distro ${distroId} not available for ${this.arch}`);
 		}
+
+		url = await this.resolveUrl(url, logger);
 
 		const distroPath = `${this.distrosPath}/${distroId}`;
 		const rootfsPath = `${distroPath}/rootfs`;

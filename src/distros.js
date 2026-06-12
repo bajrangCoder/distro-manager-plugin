@@ -130,6 +130,26 @@ const DISTROS = {
 		isXz: true,
 		isProotDistro: true,
 	},
+
+	kali: {
+		name: "Kali Linux",
+		version: "latest",
+		description: "Penetration testing and security auditing distribution",
+		icon: "🐉",
+		pkgManager: "apt",
+		urls: {
+			"arm64-v8a":
+				"https://images.linuxcontainers.org/images/kali/current/arm64/default/",
+			"armeabi-v7a":
+				"https://images.linuxcontainers.org/images/kali/current/armhf/default/",
+			x86_64:
+				"https://images.linuxcontainers.org/images/kali/current/amd64/default/",
+		},
+		size: "~150MB",
+		shell: "/bin/bash",
+		isXz: true,
+		isProotDistro: false,
+	},
 };
 
 export default DISTROS;

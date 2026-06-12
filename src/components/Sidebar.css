@@ -180,20 +180,18 @@
 }
 
 .status-badge.installed {
-  background-color: rgba(76, 175, 80, 0.12);
+  background-color: transparent;
   color: var(--success-text-color, #4CAF50);
+  font-size: 0.95em;
+  padding: 0 4px;
 }
 
 .status-badge.active {
-  background-color: rgba(76, 175, 80, 0.18);
+  background-color: rgba(76, 175, 80, 0.12);
   color: var(--success-text-color, #4CAF50);
-  border: 1px solid var(--success-text-color, #4CAF50);
-}
-
-.status-badge.not-installed {
-  background-color: rgba(122, 122, 122, 0.12);
-  color: var(--secondary-text-color, #888888);
-  opacity: 0.75;
+  border: 1px solid var(--success-text-color, rgba(76, 175, 80, 0.3));
+  font-size: 0.72em;
+  padding: 1px 5px;
 }
 
 .status-badge.busy {

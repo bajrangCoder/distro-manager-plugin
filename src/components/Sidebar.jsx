@@ -185,17 +185,17 @@ export default function Sidebar({ plugin }) {
             const isRunning = !!runningPorts[d.id];
             const isInstalled = d.installed;
             
-            let statusText = "Not Installed";
-            let statusClass = "not-installed";
+            let statusText = "";
+            let statusClass = "";
 
             if (isBusy) {
               statusText = state.status === "installing" ? "Installing..." : "Removing...";
               statusClass = "busy";
             } else if (isRunning) {
-              statusText = `Active (:${runningPorts[d.id]})`;
+              statusText = `:${runningPorts[d.id]}`;
               statusClass = "active";
             } else if (isInstalled) {
-              statusText = "Installed";
+              statusText = "✓";
               statusClass = "installed";
             }
 
@@ -212,7 +212,7 @@ export default function Sidebar({ plugin }) {
                   </div>
                   
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <span className={`status-badge ${statusClass}`}>{statusText}</span>
+                    {statusText && <span className={`status-badge ${statusClass}`}>{statusText}</span>}
                     <svg 
                       width="16" 
                       height="16" 

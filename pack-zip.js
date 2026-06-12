@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const jszip = require("jszip");
 
 const iconFile = path.join(__dirname, "icon.png");
+const iconJPGFile = path.join(__dirname, "icon.jpg");
 const pluginJSON = path.join(__dirname, "plugin.json");
 const distFolder = path.join(__dirname, "dist");
 const json = JSON.parse(fs.readFileSync(pluginJSON, "utf8"));
@@ -31,6 +32,7 @@ if (!json.changelogs) {
 const zip = new jszip();
 
 zip.file("icon.png", fs.readFileSync(iconFile));
+zip.file("icon.jpg", fs.readFileSync(iconJPGFile));
 zip.file("plugin.json", fs.readFileSync(pluginJSON));
 
 if (readmeDotMd) {

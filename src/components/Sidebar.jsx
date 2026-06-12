@@ -111,6 +111,7 @@ export default function Sidebar({ plugin }) {
 		try {
 			if (type === "acodex" || type === "builtin") {
 				await plugin.launchTerminal(distroId, type, port);
+				acode.exec("toggle-sidebar");
 				// Refresh server status
 				setTimeout(checkActiveServers, 1500);
 			}

@@ -1,25 +1,25 @@
 {
-  "name": "acode-distro-manager",
-  "version": "1.0.0",
-  "description": "Manage and install multiple Linux distributions in Acode",
-  "main": "src/main.js",
-  "repository": "https://github.com/Acode-Foundation/acode-plugin.git",
-  "author": "Raunak",
-  "license": "MIT",
-  "dependencies": {
-    "acode-plugin-types": "^1.11.7-patch.2",
-    "html-tag-js": "^2.4.15",
-    "preact": "^10.29.2"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.4.16",
-    "esbuild": "^0.25.8",
-    "jszip": "^3.10.1"
-  },
-  "scripts": {
-    "dev": "node esbuild.config.mjs --serve",
-    "build": "node esbuild.config.mjs",
-    "format": "biome format --write"
-  },
-  "browserslist": "cover 100%,not android < 5"
+	"name": "acode-distro-manager",
+	"version": "1.0.0",
+	"description": "Manage and install multiple Linux distributions in Acode",
+	"main": "src/main.js",
+	"repository": "https://github.com/Acode-Foundation/acode-plugin.git",
+	"author": "Raunak",
+	"license": "MIT",
+	"dependencies": {
+		"acode-plugin-types": "^1.11.7-patch.2",
+		"html-tag-js": "^2.4.15",
+		"preact": "^10.29.2"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.4.16",
+		"esbuild": "^0.25.8",
+		"jszip": "^3.10.1"
+	},
+	"scripts": {
+		"dev": "node esbuild.config.mjs --serve",
+		"build": "node esbuild.config.mjs",
+		"format": "biome format --write"
+	},
+	"browserslist": "cover 100%,not android < 5"
 }

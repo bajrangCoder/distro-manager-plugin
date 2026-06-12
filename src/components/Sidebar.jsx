@@ -1,4 +1,4 @@
-import { _h, Fragment } from "preact";
+import { h, Fragment } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 
 export default function Sidebar({ plugin }) {

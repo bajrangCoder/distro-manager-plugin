@@ -1,22 +1,4 @@
 const DISTROS = {
-	alpine: {
-		name: "Alpine Linux",
-		version: "3.21",
-		description: "Lightweight musl-based distro, fast and minimal",
-		icon: "🏔️",
-		pkgManager: "apk",
-		urls: {
-			"arm64-v8a":
-				"https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.0-aarch64.tar.gz",
-			"armeabi-v7a":
-				"https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/armhf/alpine-minirootfs-3.21.0-armhf.tar.gz",
-			x86_64:
-				"https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/x86_64/alpine-minirootfs-3.21.0-x86_64.tar.gz",
-		},
-		size: "~3MB",
-		shell: "/bin/sh",
-		isXz: false,
-	},
 
 	debian: {
 		name: "Debian",

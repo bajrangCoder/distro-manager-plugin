@@ -1,6 +1,6 @@
 {
   "$schema": "https://acode.app/schema/plugin/v0.1.0.json",
-  "id": "acode.distro-manager",
+  "id": "acode.distro.manager",
   "name": "Distro Manager",
   "main": "main.js",
   "version": "1.0.0",
@@ -8,11 +8,11 @@
   "icon": "icon.png",
   "minVersionCode": 290,
   "license": "MIT",
-  "keywords": ["terminal", "linux", "distro", "ubuntu", "debian", "arch", "devcontainer"],
+  "keywords": ["terminal", "linux", "distro", "ubuntu", "debian", "arch"],
   "price": 0,
   "author": {
-    "name": "Acode Foundation",
-    "email": "",
-    "github": "Acode-Foundation"
+    "name": "Raunak",
+    "email": "raunak@bajrangcoder.dev",
+    "github": "bajrangCoder"
   }
 }

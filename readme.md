@@ -1,59 +1,39 @@
 # Distro Manager for Acode
 
-Manage and install multiple Linux distributions in Acode without disturbing the default Alpine installation.
+Manage and install multiple Linux distributions in Acode easily through a beautiful, native-looking sidebar app.
 
 ## Features
 
-- **Multiple Distro Support**: Install and manage multiple Linux distributions side-by-side on separate ports.
-- **Interactive Shell Features**: Fully-configured shell sessions with color-themed `PS1` prompts, a Welcome Message (MOTD) banner, and proper `$HOME` directory management.
+- **Sidebar Control Panel**: Fully integrated Preact UI sidebar app panel mapping to Acode's active theme colors automatically.
+- **Multiple Distro Support**: Install and manage multiple Linux distributions side-by-side on separate PTY ports.
+- **Intelligent Split Launch Button**:
+  - Launch with one click using your default terminal type.
+  - Click the arrow dropdown to open Acode's native terminal selector and set/switch your default terminal preference (persists across restarts).
+  - Integrates with both **AcodeX** and Acode's **Built-in Terminal**. (If AcodeX is not installed, it cleanly falls back to a single Launch using the Built-in Terminal).
+- **Live Console Logs**: View active installation or deletion command logs in real-time in a console window directly inside the distro card.
+- **Progressive Shell Fallbacks**: If the guest distro's default shell is missing from the rootfs, the plugin progressively tries `/bin/bash` → `/usr/bin/bash` → `/bin/sh` → `/usr/bin/sh` to make sure it starts.
 - **Built-in `acode` CLI tool**: Type `acode <file>` inside guest shells to open files/folders directly in Acode.
 - **Available Distros**:
-  - 🏔️ **Alpine Linux (3.21)**: Lightweight, musl-based (~3MB download)
-  - 🌀 **Debian (trixie)**: Stable and reliable (~35MB download)
-  - 🟠 **Ubuntu (25.10 Questing)**: Popular glibc-based distro (~58MB download)
-  - 🔵 **Arch Linux**: Rolling release for power users (~160MB download)
-  - 🎩 **Fedora (43)**: Cutting-edge packages (~38MB download)
-  - ⚫ **Void Linux**: Independent distro with runit (~51MB download)
-  - 🦎 **openSUSE Tumbleweed**: Stable rolling release (~44MB download)
-  - 🟢 **Manjaro**: User-friendly Arch-based distro (~141MB download)
+  - 🌀 **Debian (trixie)**
+  - 🟠 **Ubuntu (25.10 Questing)**
+  - 🔵 **Arch Linux**
+  - 🎩 **Fedora (43)**
+  - ⚫ **Void Linux**
+  - 🦎 **openSUSE Tumbleweed**
+  - 🟢 **Manjaro**
 
-- **Non-Destructive**: Does not modify or interfere with Acode's built-in Alpine sandbox terminal.
-- **Command Palette Integration**: All actions available via command palette.
+## How to Access
 
-## Usage
-
-### Commands
-
-Open the command palette (`Ctrl/Cmd + Shift + P`) and search for:
-
-| Command | Description |
-|---------|-------------|
-| `Distro Manager: Install Distribution` | Download and install a new distro |
-| `Distro Manager: Uninstall Distribution` | Remove an installed distro |
-| `Distro Manager: Open Shell` | Launch a shell in an installed distro |
-| `Distro Manager: List Distributions` | Show installed and available distros |
-| `Distro Manager: Distribution Info` | View details about a distro |
-
-### Installing a Distribution
-
-1. Run `Distro Manager: Install Distribution`
-2. Select a distribution from the list
-3. Confirm the installation
-4. Wait for download and setup to complete
-
-### Opening a Shell
-
-1. Run `Distro Manager: Open Shell`
-2. Select an installed distribution
-3. A terminal will open with the selected distro
+1. Open Acode's sidebar panel (typically by tapping the menu icon in the top-left or pressing `Ctrl + B`).
+2. Click the **Distro Manager** icon.
+3. The control dashboard will open showing all available and installed distributions.
 
 ## How It Works
 
-This plugin uses the same proot infrastructure as the built-in terminal but installs distributions to a separate `distros/` directory:
+This plugin uses the same proot infrastructure as the built-in terminal but installs distributions to a separate `distros/` directory inside your app's data files:
 
 ```
-$PREFIX/
-├── alpine/           ← Default (untouched)
+$FILES_DIR/
 ├── distros/          ← Plugin-managed
 │   ├── ubuntu/
 │   │   └── rootfs/
@@ -66,18 +46,17 @@ $PREFIX/
 
 ## Requirements
 
-- Acode with Terminal plugin installed
-- Working proot binaries (auto-handled by Terminal plugin)
-- Internet connection for downloading distros
-- Sufficient storage space (varies by distro)
+- Acode editor.
+- Working proot binaries (handled by Acode Terminal).
+- Internet connection for downloading distros.
+- Sufficient storage space (varies by distro).
 
 ## Package Managers by Distro
 
 | Distro | Package Manager | Example |
 |--------|-----------------|---------|
-| Alpine | apk | `apk add nodejs` |
-| Ubuntu/Debian | apt | `apt install nodejs` |
-| Arch | pacman | `pacman -S nodejs` |
+| Ubuntu/Debian | apt | `apt update && apt install nodejs` |
+| Arch/Manjaro | pacman | `pacman -S nodejs` |
 | Fedora | dnf | `dnf install nodejs` |
 | Void | xbps | `xbps-install nodejs` |
 | openSUSE | zypper | `zypper install nodejs` |
@@ -86,7 +65,6 @@ $PREFIX/
 
 | Distro | Base Size (Download) | Installed Size |
 |--------|----------------------|----------------|
-| Alpine | ~3MB | ~10MB |
 | Debian | ~35MB | ~100MB |
 | Ubuntu | ~58MB | ~170MB |
 | Arch | ~160MB | ~480MB |

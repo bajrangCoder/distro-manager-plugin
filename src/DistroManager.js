@@ -50,7 +50,9 @@ class DistroManager {
 
 	async saveConfig() {
 		const content = JSON.stringify(this.config, null, 2);
-		system.writeText(this.configPath, content);
+		await new Promise((resolve, reject) => {
+			system.writeText(this.configPath, content, resolve, reject);
+		});
 	}
 
 	fileExists(path) {
@@ -225,10 +227,14 @@ class DistroManager {
 			}
 
 			logger("⚙️ Configuring DNS...");
-			system.writeText(
-				`${rootfsPath}/etc/resolv.conf`,
-				"nameserver 8.8.8.8\nnameserver 8.8.4.4",
-			);
+			await new Promise((resolve, reject) => {
+				system.writeText(
+					`${rootfsPath}/etc/resolv.conf`,
+					"nameserver 8.8.8.8\nnameserver 8.8.4.4",
+					resolve,
+					reject,
+				);
+			});
 
 			this.config.installed[distroId] = {
 				installedAt: new Date().toISOString(),
@@ -329,6 +335,9 @@ done
 
 ARGS="$ARGS -b /sdcard -b /storage -b /dev -b /data -b /proc -b /sys"
 ARGS="$ARGS -b /dev/urandom:/dev/random"
+ARGS="$ARGS -b $PREFIX/public:/public"
+ARGS="$ARGS -b $PREFIX/public:/home"
+ARGS="$ARGS -b $PREFIX/public:/root"
 ARGS="$ARGS -r ${rootfsPath}"
 ARGS="$ARGS -0 --link2symlink --sysvipc -L"
 ARGS="$ARGS -w /root"

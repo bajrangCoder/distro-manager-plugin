@@ -16,7 +16,7 @@ const COMMANDS = {
 };
 
 const DEFAULT_PORT = 43130;
-const INIT_SCRIPT_VERSION = 3;
+const INIT_SCRIPT_VERSION = 8;
 
 function shellQuote(value) {
 	return `'${String(value).replace(/'/g, "'\\''")}'`;
@@ -209,27 +209,92 @@ export SHELL=${distro.shell}
 [ -f /etc/bash.bashrc ] && . /etc/bash.bashrc
 [ -f ~/.bashrc ] && . ~/.bashrc
 
-# Color prompt: user@distro:path$
-PS1='\\[\\033[1;32m\\]\\u\\[\\033[0m\\]@\\[\\033[1;35m\\]${distroName}\\[\\033[0m\\]:\\[\\033[1;34m\\]\\w\\[\\033[0m\\]\\$ '
+# Unset PROMPT_COMMAND to prevent it overriding our prompt
+unset PROMPT_COMMAND
 
-# Show welcome message
-if [ ! -f /tmp/.motd_shown ]; then
-  echo ""
-  echo -e "\\033[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\033[0m"
-  echo -e "  \\033[1;33m${distro.icon} Welcome to ${distro.name} in Acode!\\033[0m"
-  echo -e "\\033[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\033[0m"
-  echo ""
-  echo -e "  Package Manager: \\033[1;32m${distro.pkgManager}\\033[0m"
-  echo ""
-  touch /tmp/.motd_shown
+# Color prompt: user@distro:path$
+if [ -n "$BASH_VERSION" ]; then
+  PS1='\\[\\033[1;32m\\]\\u\\[\\033[0m\\]@\\[\\033[1;35m\\]${distroName}\\[\\033[0m\\]:\\[\\033[1;34m\\]\\w\\[\\033[0m\\]\\$ '
+else
+  # POSIX sh
+  PS1='\\033[1;32m\$(whoami 2>/dev/null || echo root)\\033[0m@\\033[1;35m${distroName}\\033[0m:\\033[1;34m\$PWD\\033[0m# '
 fi
 
-cd ~
+# Show welcome message
+if [ -z "$ACODE_MOTD_SHOWN" ]; then
+  export ACODE_MOTD_SHOWN=1
+  printf "\\033[1;35m  🚀 ${distro.name} environment loaded successfully.\\033[0m\\n"
+  printf "\\033[1;30m  ──────────────────────────────────────────\\033[0m\\n"
+  printf "   \\033[1;32m• Package Manager :\\033[0m \\033[1;36m${distro.pkgManager}\\033[0m\\n"
+  printf "   \\033[1;32m• Home Directory  :\\033[0m \\033[1;36m\\$HOME\\033[0m\\n"
+  printf "   \\033[1;32m• Quick Editor    :\\033[0m Run \\033[1;33macode <file>\\033[0m to edit\\n"
+  printf "\\033[1;30m  ──────────────────────────────────────────\\033[0m\\n\\n"
+fi
+
+cd "$HOME" 2>/dev/null || cd /root 2>/dev/null || cd /
 `;
+
+		// Configure /etc/profile in rootfs to ensure all login shells load our env and prompt
+		const profilePath = `${rootfsPath}/etc/profile`;
+		try {
+			let profileContent = "";
+			const exists = await this.manager.fileExists(profilePath);
+			if (exists) {
+				profileContent = await Executor.BackgroundExecutor.execute(`cat "${profilePath}"`);
+			}
+			const markerStart = "# >>> Acode Distro Init Start >>>";
+			const markerEnd = "# <<< Acode Distro Init End <<<";
+			const startIndex = profileContent.indexOf(markerStart);
+			const endIndex = profileContent.indexOf(markerEnd);
+
+			if (startIndex !== -1 && endIndex !== -1) {
+				profileContent = profileContent.slice(0, startIndex) + profileContent.slice(endIndex + markerEnd.length);
+			}
+
+			const profileConfig = `
+${markerStart}
+# Acode ${distro.name} Shell Configuration
+export HOME=/root
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/system/bin
+export TERM=xterm-256color
+export LANG=C.UTF-8
+export SHELL=${distro.shell}
+
+# Unset PROMPT_COMMAND to prevent it overriding our prompt
+unset PROMPT_COMMAND
+
+if [ -n "$BASH_VERSION" ]; then
+  PS1='\\[\\033[1;32m\\]\\u\\[\\033[0m\\]@\\[\\033[1;35m\\]${distroName}\\[\\033[0m\\]:\\[\\033[1;34m\\]\\w\\[\\033[0m\\]\\$ '
+else
+  PS1='\\033[1;32m\$(whoami 2>/dev/null || echo root)\\033[0m@\\033[1;35m${distroName}\\033[0m:\\033[1;34m\$PWD\\033[0m# '
+fi
+
+if [ -z "$ACODE_MOTD_SHOWN" ]; then
+  export ACODE_MOTD_SHOWN=1
+  printf "\\033[1;35m  🚀 ${distro.name} environment loaded successfully.\\033[0m\\n"
+  printf "\\033[1;30m  ──────────────────────────────────────────\\033[0m\\n"
+  printf "   \\033[1;32m• Package Manager :\\033[0m \\033[1;36m${distro.pkgManager}\\033[0m\\n"
+  printf "   \\033[1;32m• Home Directory  :\\033[0m \\033[1;36m\\$HOME\\033[0m\\n"
+  printf "   \\033[1;32m• Quick Editor    :\\033[0m Run \\033[1;33macode <file>\\033[0m to edit\\n"
+  printf "\\033[1;30m  ──────────────────────────────────────────\\033[0m\\n\\n"
+fi
+
+cd "\\$HOME" 2>/dev/null || cd /root 2>/dev/null || cd /
+${markerEnd}
+`;
+
+			profileContent = profileContent.trim() + "\n" + profileConfig;
+			await new Promise((resolve, reject) => {
+				system.writeText(profilePath, profileContent, resolve, reject);
+			});
+		} catch (e) {
+			console.warn("[DistroManager] Failed to update /etc/profile:", e);
+		}
 
 		const initScript = `#!/bin/sh
 export LD_LIBRARY_PATH=$PREFIX
 export PROOT_TMP_DIR=$PREFIX/tmp
+export ENV=/etc/acode-initrc
 LOG_FILE="${logPath}"
 
 log() {
@@ -283,6 +348,8 @@ ARGS="$ARGS -b /proc"
 ARGS="$ARGS -b /sys"
 ARGS="$ARGS -b $PREFIX"
 ARGS="$ARGS -b $PREFIX/public:/public"
+ARGS="$ARGS -b $PREFIX/public:/home"
+ARGS="$ARGS -b $PREFIX/public:/root"
 ARGS="$ARGS -b ${rootfsPath}/tmp:/dev/shm"
 
 [ -e "/proc/self/fd" ] && ARGS="$ARGS -b /proc/self/fd:/dev/fd"
@@ -298,7 +365,7 @@ ARGS="$ARGS -L"
 ARGS="$ARGS -w /root"
 
 DISTRO_SHELL="${distro.shell}"
-SHELL_ARGS="-i"
+SHELL_ARGS="-l"
 
 if [ ! -e "${rootfsPath}$DISTRO_SHELL" ] && [ -e "${rootfsPath}/usr/bin/bash" ]; then
   DISTRO_SHELL="/usr/bin/bash"
@@ -326,11 +393,45 @@ log "SHELL_ARGS=$SHELL_ARGS"
 log "ARGS=$ARGS"
 log "executing proot"
 
-exec $PROOT $ARGS "$DISTRO_SHELL" $SHELL_ARGS 2>> "$LOG_FILE"
+exec $PROOT $ARGS "$DISTRO_SHELL" $SHELL_ARGS
 `;
 
-		system.writeText(initrcPath, bashrc);
-		system.writeText(initScriptPath, initScript);
+		await new Promise((resolve, reject) => {
+			system.writeText(initrcPath, bashrc, resolve, reject);
+		});
+		await new Promise((resolve, reject) => {
+			system.writeText(initScriptPath, initScript, resolve, reject);
+		});
+
+		const binDir = `${rootfsPath}/usr/local/bin`;
+		const binDirExists = await this.manager.fileExists(binDir);
+		if (!binDirExists) {
+			await new Promise((resolve, reject) => {
+				system.mkdirs(binDir, resolve, reject);
+			});
+		}
+
+		const acodeCliContent = `#!/bin/sh
+# acode - Open files/folders in Acode editor from inside distro
+if [ \$# -eq 0 ]; then
+  printf '\\e]7777;open;folder;.\\a'
+  exit 0
+fi
+for arg in "\$@"; do
+  if [ -d "\$arg" ]; then
+    printf '\\e]7777;open;folder;%s\\a' "\$(realpath "\$arg")"
+  else
+    printf '\\e]7777;open;file;%s\\a' "\$(realpath "\$arg")"
+  fi
+done
+`;
+		await new Promise((resolve, reject) => {
+			system.writeText(`${binDir}/acode`, acodeCliContent, resolve, reject);
+		});
+		await new Promise((resolve, reject) => {
+			system.setExec(`${binDir}/acode`, true, resolve, reject);
+		});
+
 		await new Promise((resolve, reject) => {
 			system.setExec(initScriptPath, true, resolve, reject);
 		});

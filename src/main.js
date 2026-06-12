@@ -10,7 +10,6 @@ const alert = acode.require("alert");
 const select = acode.require("select");
 const createLoader = acode.require("loader");
 
-
 const DEFAULT_PORT = 43130;
 const INIT_SCRIPT_VERSION = 8;
 
@@ -68,7 +67,7 @@ class DistroManagerPlugin {
 			false,
 			() => {
 				this.notifyListeners();
-			}
+			},
 		);
 	}
 
@@ -90,7 +89,6 @@ class DistroManagerPlugin {
 			}
 		});
 	}
-
 
 	async installDistro(distroId) {
 		const distro = DISTROS[distroId];
@@ -119,7 +117,10 @@ class DistroManagerPlugin {
 
 			this.installStates[distroId] = {
 				status: "success",
-				logs: [...this.installStates[distroId].logs, `✓ Installed successfully!`],
+				logs: [
+					...this.installStates[distroId].logs,
+					`✓ Installed successfully!`,
+				],
 			};
 			this.notifyListeners();
 
@@ -132,7 +133,9 @@ class DistroManagerPlugin {
 			this.installStates[distroId] = {
 				status: "error",
 				error: error.message || String(error),
-				logs: this.installStates[distroId] ? this.installStates[distroId].logs : [],
+				logs: this.installStates[distroId]
+					? this.installStates[distroId].logs
+					: [],
 			};
 			this.notifyListeners();
 		}
@@ -174,7 +177,9 @@ class DistroManagerPlugin {
 			this.installStates[distroId] = {
 				status: "error",
 				error: error.message || String(error),
-				logs: this.installStates[distroId] ? this.installStates[distroId].logs : [],
+				logs: this.installStates[distroId]
+					? this.installStates[distroId].logs
+					: [],
 			};
 			this.notifyListeners();
 		}
@@ -254,7 +259,9 @@ cd "$HOME" 2>/dev/null || cd /root 2>/dev/null || cd /
 			let profileContent = "";
 			const exists = await this.manager.fileExists(profilePath);
 			if (exists) {
-				profileContent = await Executor.BackgroundExecutor.execute(`cat "${profilePath}"`);
+				profileContent = await Executor.BackgroundExecutor.execute(
+					`cat "${profilePath}"`,
+				);
 			}
 			const markerStart = "# >>> Acode Distro Init Start >>>";
 			const markerEnd = "# <<< Acode Distro Init End <<<";
@@ -262,7 +269,9 @@ cd "$HOME" 2>/dev/null || cd /root 2>/dev/null || cd /
 			const endIndex = profileContent.indexOf(markerEnd);
 
 			if (startIndex !== -1 && endIndex !== -1) {
-				profileContent = profileContent.slice(0, startIndex) + profileContent.slice(endIndex + markerEnd.length);
+				profileContent =
+					profileContent.slice(0, startIndex) +
+					profileContent.slice(endIndex + markerEnd.length);
 			}
 
 			const profileConfig = `
@@ -474,7 +483,7 @@ done
 		try {
 			await this.ensureDistroInitScript(distroId);
 			const running = await this.checkServerRunning(port);
-			
+
 			if (!running) {
 				const started = await this.startDistroServerBackground(distroId, port);
 				if (!started) {
@@ -485,7 +494,10 @@ done
 			if (type === "acodex") {
 				const acodex = acode.require("acodex");
 				if (!acodex) {
-					alert("AcodeX Not Found", "Please install AcodeX from the plugin store to use this terminal.");
+					alert(
+						"AcodeX Not Found",
+						"Please install AcodeX from the plugin store to use this terminal.",
+					);
 					return;
 				}
 				if (acodex.isTerminalOpened()) {
@@ -496,7 +508,10 @@ done
 			} else if (type === "builtin") {
 				const terminal = acode.require("terminal");
 				if (!terminal) {
-					alert("Built-in Terminal Error", "Built-in terminal is not available in your Acode version.");
+					alert(
+						"Built-in Terminal Error",
+						"Built-in terminal is not available in your Acode version.",
+					);
 					return;
 				}
 				const pid = await this.createDistroSession(port);

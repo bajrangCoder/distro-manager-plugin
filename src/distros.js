@@ -1,5 +1,4 @@
 const DISTROS = {
-
 	debian: {
 		name: "Debian",
 		version: "trixie",

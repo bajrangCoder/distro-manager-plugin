@@ -107,6 +107,8 @@ class DistroManager {
 		const rootfsPath = `${distroPath}/rootfs`;
 		const isXz = distro.isXz || url.endsWith(".xz");
 		const tarFileName = `${distroId}.tar${isXz ? ".xz" : ".gz"}`;
+		const tarFilePath = `${this.filesDir}/${tarFileName}`;
+		const decompressedTarPath = `${this.filesDir}/${distroId}.tar`;
 
 		try {
 			logger(`${distro.icon} Installing ${distro.name} ${distro.version}...`);
@@ -152,11 +154,11 @@ class DistroManager {
 				// Decompress in Alpine where xz is available, then extract from Android
 				// shell to avoid proot fd-binding warnings breaking tar extraction.
 				await Executor.execute(
-					`sh -c ${shellQuote(`rm -f "$PREFIX/${distroId}.tar" && xz -dc "$PREFIX/${tarFileName}" > "$PREFIX/${distroId}.tar"`)}`,
+					`sh -c ${shellQuote(`rm -f "${decompressedTarPath}" && xz -dc "${tarFilePath}" > "${decompressedTarPath}"`)}`,
 					true,
 				);
 
-				const tarFile = `$PREFIX/${distroId}.tar`;
+				const tarFile = decompressedTarPath;
 				const tarExists = await Executor.execute(
 					`test -f "${tarFile}" && echo "yes" || echo "no"`,
 				);
@@ -170,12 +172,14 @@ class DistroManager {
 				logger("   → Extracting tar archive...");
 				await Executor.execute(
 					`tar --no-same-owner -xf "${tarFile}" -C "${rootfsPath}" 2>&1`,
+					true,
 				);
-				await Executor.execute(`rm -f "${tarFile}" "$PREFIX/${tarFileName}"`);
+				await Executor.execute(`rm -f "${tarFile}" "${tarFilePath}"`, true);
 
 				// Verify extraction worked
 				const fileCount = await Executor.execute(
 					`ls "${rootfsPath}" 2>/dev/null | wc -l`,
+					true,
 				);
 				if (Number.parseInt(fileCount.trim(), 10) === 0) {
 					throw new Error(
@@ -185,9 +189,10 @@ class DistroManager {
 			} else {
 				logger("   → Extracting gzip archive...");
 				await Executor.execute(
-					`tar --no-same-owner -xzf "$PREFIX/${tarFileName}" -C "${rootfsPath}" 2>&1`,
+					`tar --no-same-owner -xzf "${tarFilePath}" -C "${rootfsPath}" 2>&1`,
+					true,
 				);
-				await Executor.execute(`rm -f "$PREFIX/${tarFileName}"`);
+				await Executor.execute(`rm -f "${tarFilePath}"`, true);
 			}
 
 			if (distro.isProotDistro) {
@@ -248,7 +253,7 @@ class DistroManager {
 			logger(`❌ Installation failed: ${error.message || error}`);
 			await Executor.execute(`rm -rf "${distroPath}" 2>/dev/null || true`);
 			await Executor.execute(
-				`rm -f "$PREFIX/${tarFileName}" "$PREFIX/${distroId}.tar" 2>/dev/null || true`,
+				`rm -f "${tarFilePath}" "${decompressedTarPath}" 2>/dev/null || true`,
 			);
 			throw error;
 		}

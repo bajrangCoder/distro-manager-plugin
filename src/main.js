@@ -381,8 +381,16 @@ ARGS="$ARGS -w /root"
 DISTRO_SHELL="${distro.shell}"
 SHELL_ARGS="-l"
 
-if [ ! -e "${rootfsPath}$DISTRO_SHELL" ] && [ -e "${rootfsPath}/usr/bin/bash" ]; then
-  DISTRO_SHELL="/usr/bin/bash"
+if [ ! -e "${rootfsPath}$DISTRO_SHELL" ]; then
+  if [ -e "${rootfsPath}/bin/bash" ]; then
+    DISTRO_SHELL="/bin/bash"
+  elif [ -e "${rootfsPath}/usr/bin/bash" ]; then
+    DISTRO_SHELL="/usr/bin/bash"
+  elif [ -e "${rootfsPath}/bin/sh" ]; then
+    DISTRO_SHELL="/bin/sh"
+  elif [ -e "${rootfsPath}/usr/bin/sh" ]; then
+    DISTRO_SHELL="/usr/bin/sh"
+  fi
 fi
 
 case "$DISTRO_SHELL" in

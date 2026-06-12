@@ -159,7 +159,7 @@ class DistroManager {
 				);
 
 				const tarFile = decompressedTarPath;
-				const tarExists = await Executor.execute(
+				const tarExists = await Executor.BackgroundExecutor.execute(
 					`test -f "${tarFile}" && echo "yes" || echo "no"`,
 				);
 
@@ -177,7 +177,7 @@ class DistroManager {
 				await Executor.execute(`rm -f "${tarFile}" "${tarFilePath}"`, true);
 
 				// Verify extraction worked
-				const fileCount = await Executor.execute(
+				const fileCount = await Executor.BackgroundExecutor.execute(
 					`ls "${rootfsPath}" 2>/dev/null | wc -l`,
 					true,
 				);
@@ -196,7 +196,7 @@ class DistroManager {
 			}
 
 			if (distro.isProotDistro) {
-				const lsResult = await Executor.execute(
+				const lsResult = await Executor.BackgroundExecutor.execute(
 					`ls "${rootfsPath}" 2>/dev/null || echo ""`,
 				);
 				const innerDirs = lsResult.trim().split("\n").filter(Boolean);
@@ -354,7 +354,7 @@ $PROOT $ARGS ${shell} -c "${command.replace(/"/g, '\\"')}"
 	async getInstalledSize(distroId) {
 		const distroPath = `${this.distrosPath}/${distroId}`;
 		try {
-			const result = await Executor.execute(
+			const result = await Executor.BackgroundExecutor.execute(
 				`du -sh "${distroPath}" 2>/dev/null | cut -f1`,
 			);
 			return result.trim() || "Unknown";

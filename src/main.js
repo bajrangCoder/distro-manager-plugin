@@ -592,10 +592,9 @@ exec "$LINKER" "$PREFIX/axs" -p ${port} -c "sh ${initScriptPath}"
 			.replace(/</g, "&lt;")
 			.replace(/>/g, "&gt;");
 
-		alert(
-			`${distro.icon} ${distro.name} Launch Log`,
-			`<pre style="text-align:left; white-space:pre-wrap; font-size:0.8em; max-height:60vh; overflow:auto;">${escaped}</pre>`,
-		);
+		const html = `<pre style="text-align:left; white-space:pre-wrap; font-size:0.85em; max-height:55vh; overflow:auto; user-select:text; background:#0b0b0b; padding:8px; border-radius:4px; color:#4af626; font-family:monospace;">${escaped}</pre>`;
+
+		alert(`${distro.icon} ${distro.name} Launch Log`, html);
 	}
 
 	async createDistroSession(port) {

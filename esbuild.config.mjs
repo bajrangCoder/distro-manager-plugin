@@ -33,6 +33,12 @@ let buildConfig = {
   color: true,
   outdir: "dist",
   plugins: [zipPlugin],
+  jsxFactory: "h",
+  jsxFragment: "Fragment",
+  loader: {
+    ".js": "jsx",
+    ".css": "text",
+  },
 };
 
 // Main function to handle both serve and production builds

@@ -1,19 +1,15 @@
+import { h, render } from "preact";
 import plugin from "../plugin.json";
 import DistroManager from "./DistroManager.js";
 import DISTROS from "./distros.js";
+import Sidebar from "./components/Sidebar.jsx";
+import sidebarStyles from "./components/Sidebar.css";
 
 const confirm = acode.require("confirm");
 const alert = acode.require("alert");
 const select = acode.require("select");
 const createLoader = acode.require("loader");
 
-const COMMANDS = {
-	INSTALL: "distro-manager.install",
-	UNINSTALL: "distro-manager.uninstall",
-	OPEN_SHELL: "distro-manager.shell",
-	LIST: "distro-manager.list",
-	INFO: "distro-manager.info",
-};
 
 const DEFAULT_PORT = 43130;
 const INIT_SCRIPT_VERSION = 8;
@@ -27,6 +23,10 @@ class DistroManagerPlugin {
 		this.manager = null;
 		this.baseUrl = "";
 		this.filesDir = "";
+		this.listeners = [];
+		this.installStates = {};
+		this.sidebarId = "distro-manager";
+		this.$style = null;
 	}
 
 	async init() {
@@ -37,132 +37,146 @@ class DistroManagerPlugin {
 		this.manager = new DistroManager(this.filesDir);
 		await this.manager.init();
 
-		this.registerCommands();
+		this.initSidebar();
 	}
 
-	registerCommands() {
-		const { commands } = editorManager.editor;
-
-		commands.addCommand({
-			name: COMMANDS.INSTALL,
-			description: "Distro Manager: Install Distribution",
-			exec: () => this.showInstallMenu(),
-		});
-
-		commands.addCommand({
-			name: COMMANDS.UNINSTALL,
-			description: "Distro Manager: Uninstall Distribution",
-			exec: () => this.showUninstallMenu(),
-		});
-
-		commands.addCommand({
-			name: COMMANDS.OPEN_SHELL,
-			description: "Distro Manager: Open Shell",
-			exec: () => this.showShellMenu(),
-		});
-
-		commands.addCommand({
-			name: COMMANDS.LIST,
-			description: "Distro Manager: List Distributions",
-			exec: () => this.showDistroList(),
-		});
-
-		commands.addCommand({
-			name: COMMANDS.INFO,
-			description: "Distro Manager: Distribution Info",
-			exec: () => this.showDistroInfo(),
-		});
-	}
-
-	async showInstallMenu() {
-		const distros = this.manager
-			.getAvailableDistros()
-			.filter((d) => !d.installed);
-
-		if (distros.length === 0) {
-			alert(
-				"Distro Manager",
-				"All available distributions are already installed! 🎉",
-			);
+	initSidebar() {
+		const sideBarApps = acode.require("sidebarApps");
+		if (!sideBarApps) {
+			console.warn("[DistroManager] sidebarApps API not available");
 			return;
 		}
 
-		const options = distros.map((d) => [
-			d.id,
-			`${d.icon} ${d.name} ${d.version}`,
-			`${d.description} (${d.size})`,
-		]);
+		// Register custom icon using plugin icon
+		acode.addIcon("distro-manager-icon", `${this.baseUrl}icon.png`);
 
-		const selected = await select("Select Distribution to Install", options, {
-			textTransform: false,
-		});
+		// Define style tag and append it to head
+		this.$style = document.createElement("style");
+		this.$style.innerHTML = sidebarStyles;
+		document.head.appendChild(this.$style);
 
-		if (!selected) return;
-
-		await this.installDistro(selected);
+		sideBarApps.add(
+			"distro-manager-icon",
+			this.sidebarId,
+			"Distro Manager",
+			(container) => {
+				container.classList.add("scroll");
+				container.style.maxHeight = "100%";
+				container.style.overflowY = "auto";
+				render(<Sidebar plugin={this} />, container);
+			},
+			false,
+			() => {
+				this.notifyListeners();
+			}
+		);
 	}
+
+	// Observer pattern methods for UI reactivity
+	addListener(cb) {
+		this.listeners.push(cb);
+	}
+
+	removeListener(cb) {
+		this.listeners = this.listeners.filter((l) => l !== cb);
+	}
+
+	notifyListeners() {
+		this.listeners.forEach((cb) => {
+			try {
+				cb();
+			} catch (e) {
+				console.error("[DistroManager] Listener notify error:", e);
+			}
+		});
+	}
+
 
 	async installDistro(distroId) {
 		const distro = DISTROS[distroId];
 		if (!distro) return;
 
-		const confirmMsg = `
-      <div style="text-align: left;">
-        <p><strong>${distro.icon} ${distro.name} ${distro.version}</strong></p>
-        <br>
-        <p>📦 <strong>Size:</strong> ${distro.size}</p>
-        <p>📋 <strong>Package Manager:</strong> ${distro.pkgManager}</p>
-        <br>
-        <p style="color: #888;">This may take a few minutes depending on your connection.</p>
-      </div>
-    `;
+		this.installStates[distroId] = {
+			status: "installing",
+			logs: [`🏔️ Initializing ${distro.name} installation...`],
+		};
+		this.notifyListeners();
 
-		const isConfirm = await confirm("Install Distribution", confirmMsg, true);
-
-		if (!isConfirm) return;
-
-		const installLoader = createLoader.create("Installing...", "", {
-			timeout: 0,
-		});
-
-		const logs = [];
 		const logger = (msg) => {
-			logs.push(msg);
-			installLoader.setMessage(msg);
+			if (this.installStates[distroId]) {
+				this.installStates[distroId].logs.push(msg);
+				if (this.installStates[distroId].logs.length > 50) {
+					this.installStates[distroId].logs.shift();
+				}
+				this.notifyListeners();
+			}
 			console.log(`[DistroManager] ${msg}`);
 		};
 
 		try {
 			await this.manager.install(distroId, logger);
 			await this.createDistroInitScript(distroId, { force: true });
-			installLoader.destroy();
 
-			const successMsg = `
-        <div style="text-align: center;">
-          <p style="font-size: 1.2em;">${distro.icon} <strong>${distro.name}</strong></p>
-          <p style="color: #4CAF50;">✓ Installed successfully!</p>
-          <br>
-          <p style="color: #888; font-size: 0.9em;">
-            Use <strong>"Distro Manager: Open Shell"</strong><br>from the command palette to start.
-          </p>
-        </div>
-      `;
-			alert("Installation Complete", successMsg);
+			this.installStates[distroId] = {
+				status: "success",
+				logs: [...this.installStates[distroId].logs, `✓ Installed successfully!`],
+			};
+			this.notifyListeners();
+
+			setTimeout(() => {
+				delete this.installStates[distroId];
+				this.notifyListeners();
+			}, 3000);
 		} catch (error) {
-			installLoader.destroy();
-			const errorMsg = error.message || String(error);
-			const failMsg = `
-        <div style="text-align: left;">
-          <p style="color: #F44336;">❌ Failed to install ${distro.name}</p>
-          <br>
-          <p><strong>Error:</strong></p>
-          <p style="font-family: monospace; font-size: 0.85em; color: #888;">${errorMsg}</p>
-          <br>
-          <p><strong>Recent logs:</strong></p>
-          <pre style="font-size: 0.8em; color: #666; overflow-x: auto;">${logs.slice(-5).join("<br>")}</pre>
-        </div>
-      `;
-			alert("Installation Failed", failMsg);
+			console.error("[DistroManager] Installation failed:", error);
+			this.installStates[distroId] = {
+				status: "error",
+				error: error.message || String(error),
+				logs: this.installStates[distroId] ? this.installStates[distroId].logs : [],
+			};
+			this.notifyListeners();
+		}
+	}
+
+	async uninstallDistro(distroId) {
+		const distro = DISTROS[distroId];
+		if (!distro) return;
+
+		this.installStates[distroId] = {
+			status: "uninstalling",
+			logs: [`🗑️ Preparing to remove ${distro.name}...`],
+		};
+		this.notifyListeners();
+
+		const logger = (msg) => {
+			if (this.installStates[distroId]) {
+				this.installStates[distroId].logs.push(msg);
+				this.notifyListeners();
+			}
+			console.log(`[DistroManager] ${msg}`);
+		};
+
+		try {
+			await this.manager.uninstall(distroId, logger);
+
+			this.installStates[distroId] = {
+				status: "success",
+				logs: [...this.installStates[distroId].logs, `✓ Removed successfully!`],
+			};
+			this.notifyListeners();
+
+			setTimeout(() => {
+				delete this.installStates[distroId];
+				this.notifyListeners();
+			}, 3000);
+		} catch (error) {
+			console.error("[DistroManager] Uninstallation failed:", error);
+			this.installStates[distroId] = {
+				status: "error",
+				error: error.message || String(error),
+				logs: this.installStates[distroId] ? this.installStates[distroId].logs : [],
+			};
+			this.notifyListeners();
 		}
 	}
 
@@ -445,260 +459,38 @@ done
 		return initScriptPath;
 	}
 
-	async showUninstallMenu() {
-		const distros = this.manager
-			.getAvailableDistros()
-			.filter((d) => d.installed);
-
-		if (distros.length === 0) {
-			alert("Distro Manager", "No distributions installed yet.");
-			return;
-		}
-
-		const options = await Promise.all(
-			distros.map(async (d) => {
-				const size = await this.manager.getInstalledSize(d.id);
-				return [d.id, `${d.icon} ${d.name}`, `Size: ${size}`];
-			}),
-		);
-
-		const selected = await select("Select Distribution to Uninstall", options, {
-			textTransform: false,
-		});
-
-		if (!selected) return;
-
-		const distro = DISTROS[selected];
-		const confirmMsg = `
-      <div style="text-align: left;">
-        <p>⚠️ <strong>Uninstall ${distro.name}?</strong></p>
-        <br>
-        <p style="color: #F44336;">This will permanently delete all data in this distribution including:</p>
-        <ul style="color: #888; margin-left: 1em;">
-          <li>Installed packages</li>
-          <li>User files and configurations</li>
-          <li>All custom modifications</li>
-        </ul>
-      </div>
-    `;
-
-		const isConfirm = await confirm("Uninstall Distribution", confirmMsg, true);
-
-		if (!isConfirm) return;
-
-		const uninstallLoader = createLoader.create("Uninstalling...", "", {
-			timeout: 0,
-		});
-
-		try {
-			await this.manager.uninstall(selected, (msg) =>
-				uninstallLoader.setMessage(msg),
-			);
-			uninstallLoader.destroy();
-			alert("Uninstalled", `${distro.icon} ${distro.name} has been removed.`);
-		} catch (error) {
-			uninstallLoader.destroy();
-			alert("Error", `Failed to uninstall: ${error.message || error}`);
-		}
-	}
-
-	async showShellMenu() {
-		const distros = this.manager
-			.getAvailableDistros()
-			.filter((d) => d.installed);
-
-		if (distros.length === 0) {
-			const msg = `
-        <div style="text-align: center;">
-          <p>📦 No distributions installed</p>
-          <br>
-          <p style="color: #888; font-size: 0.9em;">
-            Use <strong>"Distro Manager: Install Distribution"</strong><br>
-            from the command palette to get started.
-          </p>
-        </div>
-      `;
-			alert("No Distributions", msg);
-			return;
-		}
-
-		const options = distros.map((d) => [
-			d.id,
-			`${d.icon} ${d.name} ${d.version}`,
-			d.active ? "🟢 active" : "",
-		]);
-
-		const selected = await select("Select Distribution", options, {
-			textTransform: false,
-		});
-
-		if (!selected) return;
-
-		await this.openTerminal(selected);
-	}
-
-	async openTerminal(distroId) {
+	async launchTerminal(distroId, type, port) {
 		const distro = DISTROS[distroId];
 		if (!distro) return;
 
 		try {
 			await this.ensureDistroInitScript(distroId);
-
-			const port = await this.startDistroServer(distroId);
-			if (!port) {
-				console.warn("[DistroManager] Failed to start PTY server");
-			}
-		} catch (error) {
-			console.error("[DistroManager] Failed to open terminal:", error);
-			acode.alert("Error", `Failed to start shell: ${error.message || error}`);
-		}
-	}
-
-	async startDistroServer(distroId) {
-		const initScriptPath = await this.ensureDistroInitScript(distroId);
-		const port = DEFAULT_PORT + Object.keys(DISTROS).indexOf(distroId);
-
-		try {
-			const isRunning = await this.checkServerRunning(port);
-			if (isRunning) {
-				console.log(`[DistroManager] Server already running on port ${port}`);
-				await this.showTerminalOptions(distroId, port);
-				return port;
-			}
-
-			const axsPath = `${this.filesDir}/axs`;
-			const axsExists = await this.manager.fileExists(axsPath);
-
-			if (!axsExists) {
-				const msg = `
-          <div style="text-align: left;">
-            <p>⚠️ <strong>AXS Server Not Found</strong></p>
-            <br>
-            <p style="color: #888;">
-              The PTY server binary is not installed.<br><br>
-              Please open Acode's built-in terminal first to install the required components.
-            </p>
-          </div>
-        `;
-				acode.alert("AXS Not Found", msg);
-				return null;
-			}
-
-			await new Promise((resolve, reject) => {
-				system.setExec(axsPath, true, resolve, reject);
-			});
-			await new Promise((resolve, reject) => {
-				system.setExec(initScriptPath, true, resolve, reject);
-			});
-
-			const uuid = await Executor.start("sh", (type, data) => {
-				console.log(`[DistroManager AXS] ${type}: ${data}`);
-			});
-
-			const quotedInitScriptPath = shellQuote(initScriptPath);
-			const axsCmd = `
-chmod +x "$PREFIX/axs" ${quotedInitScriptPath}
-LINKER="/system/bin/linker64"
-ARCH="$(uname -m)"
-if [ "$ARCH" != "aarch64" ] && [ "$ARCH" != "x86_64" ]; then
-  LINKER="/system/bin/linker"
-fi
-exec "$LINKER" "$PREFIX/axs" -p ${port} -c "sh ${initScriptPath}"
-`;
-			await Executor.write(uuid, `${axsCmd}\n`);
-
-			await new Promise((resolve) => setTimeout(resolve, 3000));
-
 			const running = await this.checkServerRunning(port);
-			if (running) {
-				this.manager.config.activeDistro = distroId;
-				await this.manager.saveConfig();
-				await this.showTerminalOptions(distroId, port);
-				return port;
+			
+			if (!running) {
+				const started = await this.startDistroServerBackground(distroId, port);
+				if (!started) {
+					throw new Error("PTY server failed to launch");
+				}
 			}
 
-			console.warn("[DistroManager] Server may not have started correctly");
-			await this.showTerminalOptions(distroId, port);
-			return port;
-		} catch (error) {
-			console.error("[DistroManager] Failed to start server:", error);
-			throw error;
-		}
-	}
-
-	async showTerminalOptions(distroId, port) {
-		const distro = DISTROS[distroId];
-		const acodex = acode.require("acodex");
-		const terminal = acode.require("terminal");
-
-		const options = [
-			[
-				"acodex",
-				"🖥️ Open in AcodeX Terminal",
-				"Connect using AcodeX plugin (recommended)",
-			],
-			[
-				"builtin",
-				"📟 Open in Built-in Terminal",
-				"Use Acode terminal UI directly",
-			],
-			["log", "📄 Show Launch Log", "View the last distro startup log"],
-			["info", "ℹ️ Show Server Info", "View connection details only"],
-		];
-
-		if (!acodex) {
-			options[0][2] = "⚠️ AcodeX plugin not installed";
-		}
-		if (!terminal) {
-			options[1][2] = "⚠️ Built-in terminal not available";
-		}
-
-		const selected = await select("Terminal Option", options, {
-			textTransform: false,
-		});
-
-		if (!selected) return;
-
-		if (selected === "acodex") {
-			if (!acodex) {
-				const msg = `
-          <div style="text-align: left;">
-            <p>⚠️ <strong>AcodeX Not Found</strong></p>
-            <br>
-            <p style="color: #888;">
-              The AcodeX terminal plugin is not installed.<br><br>
-              Please install AcodeX from the plugin store to use this feature.
-            </p>
-            <br>
-            <p style="font-size: 0.9em;">
-              <strong>Server is still running on port:</strong> <code>${port}</code>
-            </p>
-          </div>
-        `;
-				acode.alert("AcodeX Not Found", msg);
-				return;
-			}
-
-			try {
+			if (type === "acodex") {
+				const acodex = acode.require("acodex");
+				if (!acodex) {
+					alert("AcodeX Not Found", "Please install AcodeX from the plugin store to use this terminal.");
+					return;
+				}
 				if (acodex.isTerminalOpened()) {
 					acodex.closeTerminal();
 					await new Promise((r) => setTimeout(r, 300));
 				}
 				await acodex.openTerminal(270, port);
-			} catch (error) {
-				console.error("[DistroManager] Failed to open AcodeX:", error);
-				acode.alert(
-					"Error",
-					`Failed to connect AcodeX: ${error.message || error}`,
-				);
-			}
-		} else if (selected === "builtin") {
-			if (!terminal) {
-				acode.alert("Error", "Built-in terminal is not available.");
-				return;
-			}
-
-			try {
+			} else if (type === "builtin") {
+				const terminal = acode.require("terminal");
+				if (!terminal) {
+					alert("Built-in Terminal Error", "Built-in terminal is not available in your Acode version.");
+					return;
+				}
 				const pid = await this.createDistroSession(port);
 				await terminal.create({
 					name: `${distro.icon} ${distro.name}`,
@@ -708,36 +500,69 @@ exec "$LINKER" "$PREFIX/axs" -p ${port} -c "sh ${initScriptPath}"
 
 				this.manager.config.activeDistro = distroId;
 				await this.manager.saveConfig();
-			} catch (error) {
-				console.error("[DistroManager] Built-in terminal failed:", error);
-				acode.alert(
-					"Error",
-					`Failed to open built-in terminal: ${error.message || error}`,
-				);
 			}
-		} else if (selected === "log") {
-			await this.showLaunchLog(distroId);
-		} else {
-			const serverMsg = `
-        <div style="text-align: left;">
-          <p>${distro.icon} <strong>${distro.name}</strong> PTY server running</p>
-          <br>
-          <p><strong>Port:</strong> <code>${port}</code></p>
-          <br>
-          <p><strong>Connect using:</strong></p>
-          <ul style="margin-left: 1em; color: #888;">
-            <li>AcodeX terminal plugin (recommended)</li>
-            <li>Any WebSocket terminal client</li>
-          </ul>
-          <br>
-          <p style="font-size: 0.85em; color: #666;">
-            <strong>WebSocket:</strong> <code>ws://localhost:${port}/terminals/&lt;pid&gt;</code><br>
-            <strong>Create session:</strong> <code>POST http://localhost:${port}/terminals</code>
-          </p>
-        </div>
-      `;
-			acode.alert(`${distro.icon} Server Running`, serverMsg);
+		} catch (error) {
+			console.error("[DistroManager] Failed to launch terminal:", error);
+			alert("Error", `Failed to start shell: ${error.message || error}`);
 		}
+	}
+
+	async startDistroServerBackground(distroId, port) {
+		const initScriptPath = await this.ensureDistroInitScript(distroId);
+		const axsPath = `${this.filesDir}/axs`;
+		const axsExists = await this.manager.fileExists(axsPath);
+
+		if (!axsExists) {
+			const msg = `
+				<div style="text-align: left;">
+					<p>⚠️ <strong>AXS Server Not Found</strong></p>
+					<br>
+					<p style="color: #888;">
+						The PTY server binary is not installed.<br><br>
+						Please open Acode's built-in terminal first to install the required components.
+					</p>
+				</div>
+			`;
+			alert("AXS Not Found", msg);
+			return false;
+		}
+
+		await new Promise((resolve, reject) => {
+			system.setExec(axsPath, true, resolve, reject);
+		});
+		await new Promise((resolve, reject) => {
+			system.setExec(initScriptPath, true, resolve, reject);
+		});
+
+		const uuid = await Executor.start("sh", (type, data) => {
+			console.log(`[DistroManager AXS] ${type}: ${data}`);
+		});
+
+		const quotedInitScriptPath = shellQuote(initScriptPath);
+		const axsCmd = `
+chmod +x "$PREFIX/axs" ${quotedInitScriptPath}
+LINKER="/system/bin/linker64"
+ARCH="$(uname -m)"
+if [ "$ARCH" != "aarch64" ] && [ "$ARCH" != "x86_64" ]; then
+  LINKER="/system/bin/linker"
+fi
+exec "$LINKER" "$PREFIX/axs" -p ${port} -c "sh ${initScriptPath}"
+`;
+		await Executor.write(uuid, `${axsCmd}\n`);
+
+		// Wait up to 3 seconds for server to start, checking every 500ms
+		for (let i = 0; i < 6; i++) {
+			await new Promise((resolve) => setTimeout(resolve, 500));
+			const running = await this.checkServerRunning(port);
+			if (running) {
+				this.manager.config.activeDistro = distroId;
+				await this.manager.saveConfig();
+				return true;
+			}
+		}
+
+		console.warn("[DistroManager] Server failed to start in time");
+		return false;
 	}
 
 	async showLaunchLog(distroId) {
@@ -802,90 +627,15 @@ exec "$LINKER" "$PREFIX/axs" -p ${port} -c "sh ${initScriptPath}"
 		}
 	}
 
-	async showDistroList() {
-		const distros = this.manager.getAvailableDistros();
-
-		const installed = distros.filter((d) => d.installed);
-		const available = distros.filter((d) => !d.installed);
-
-		let html = '<div style="text-align: left;">';
-
-		html += "<p><strong>📦 Installed:</strong></p>";
-		if (installed.length > 0) {
-			html += '<ul style="margin-left: 1em; margin-bottom: 1em;">';
-			for (const d of installed) {
-				const size = await this.manager.getInstalledSize(d.id);
-				html += `<li>${d.icon} ${d.name} ${d.version} <span style="color: #888;">(${size})</span></li>`;
-			}
-			html += "</ul>";
-		} else {
-			html += '<p style="color: #888; margin-left: 1em;">None</p><br>';
-		}
-
-		html += "<p><strong>📥 Available:</strong></p>";
-		html += '<ul style="margin-left: 1em;">';
-		for (const d of available) {
-			html += `<li>${d.icon} ${d.name} ${d.version} <span style="color: #888;">(${d.size})</span></li>`;
-		}
-		html += "</ul></div>";
-
-		alert("Distributions", html);
-	}
-
-	async showDistroInfo() {
-		const distros = this.manager.getAvailableDistros();
-
-		const options = distros.map((d) => [
-			d.id,
-			`${d.icon} ${d.name}`,
-			d.installed ? "✓ Installed" : "Not installed",
-		]);
-
-		const selected = await select("Select Distribution", options, {
-			textTransform: false,
-		});
-
-		if (!selected) return;
-
-		const distro = this.manager.getDistroInfo(selected);
-		let size = "N/A";
-
-		if (distro.installed) {
-			size = await this.manager.getInstalledSize(selected);
-		}
-
-		const statusColor = distro.installed ? "#4CAF50" : "#888";
-		const statusText = distro.installed
-			? `✅ Installed (${size})`
-			: "❌ Not installed";
-
-		const html = `
-      <div style="text-align: left;">
-        <p style="font-size: 1.2em;">${distro.icon} <strong>${distro.name}</strong> ${distro.version}</p>
-        <p style="color: #888; margin-bottom: 1em;">${distro.description}</p>
-        
-        <table style="width: 100%; font-size: 0.9em;">
-          <tr><td style="color: #888;">Package Manager</td><td><strong>${distro.pkgManager}</strong></td></tr>
-          <tr><td style="color: #888;">Download Size</td><td>${distro.size}</td></tr>
-          <tr><td style="color: #888;">Status</td><td style="color: ${statusColor};">${statusText}</td></tr>
-          ${distro.active ? '<tr><td style="color: #888;">State</td><td style="color: #4CAF50;">🟢 Active</td></tr>' : ""}
-        </table>
-        
-        <p style="margin-top: 1em; font-size: 0.8em; color: #666;">
-          <strong>Path:</strong> ${distro.installPath}
-        </p>
-      </div>
-    `;
-
-		alert("Distribution Info", html);
-	}
-
 	destroy() {
-		const { commands } = editorManager.editor;
+		const sideBarApps = acode.require("sidebarApps");
+		if (sideBarApps && this.sidebarId) {
+			sideBarApps.remove(this.sidebarId);
+		}
 
-		Object.values(COMMANDS).forEach((cmd) => {
-			commands.removeCommand(cmd);
-		});
+		if (this.$style) {
+			this.$style.remove();
+		}
 	}
 }
 

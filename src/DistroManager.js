@@ -55,11 +55,11 @@ class DistroManager {
 		});
 	}
 
-	fileExists(path) {
+	fileExists(path, countSymlinks = false) {
 		return new Promise((resolve, reject) => {
 			system.fileExists(
 				path,
-				false,
+				countSymlinks,
 				(result) => {
 					resolve(result === 1);
 				},

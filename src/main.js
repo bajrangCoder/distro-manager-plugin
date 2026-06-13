@@ -532,10 +532,9 @@ done
 
 	async startDistroServerBackground(distroId, port) {
 		const initScriptPath = await this.ensureDistroInitScript(distroId);
-		const axsPath = `${this.filesDir}/axs`;
-		const axsExists = await this.manager.fileExists(axsPath);
+		const axsPath = await this.ensureAxsAvailable();
 
-		if (!axsExists) {
+		if (!axsPath) {
 			const msg = `
 				<div style="text-align: left;">
 					<p>⚠️ <strong>AXS Server Not Found</strong></p>
@@ -550,8 +549,8 @@ done
 			return false;
 		}
 
-		await new Promise((resolve, reject) => {
-			system.setExec(axsPath, true, resolve, reject);
+		await new Promise((resolve) => {
+			system.setExec(axsPath, true, resolve, resolve);
 		});
 		await new Promise((resolve, reject) => {
 			system.setExec(initScriptPath, true, resolve, reject);
@@ -563,13 +562,17 @@ done
 
 		const quotedInitScriptPath = shellQuote(initScriptPath);
 		const axsCmd = `
-chmod +x "$PREFIX/axs" ${quotedInitScriptPath}
+[ -L "$PREFIX/axs" ] || chmod +x "$PREFIX/axs"
+chmod +x ${quotedInitScriptPath}
 LINKER="/system/bin/linker64"
 ARCH="$(uname -m)"
 if [ "$ARCH" != "aarch64" ] && [ "$ARCH" != "x86_64" ]; then
   LINKER="/system/bin/linker"
 fi
-exec "$LINKER" "$PREFIX/axs" -p ${port} -c "sh ${initScriptPath}"
+if [ -L "$PREFIX/axs" ]; then
+  exec "$LINKER" "$PREFIX/axs" -p ${port} -c "sh ${initScriptPath}"
+fi
+exec sh -c "source \\"$PREFIX/init-sandbox.sh\\" \\"$PREFIX/axs\\" -p ${port} -c \\"sh ${initScriptPath}\\""
 `;
 		await Executor.write(uuid, `${axsCmd}\n`);
 
@@ -586,6 +589,36 @@ exec "$LINKER" "$PREFIX/axs" -p ${port} -c "sh ${initScriptPath}"
 
 		console.warn("[DistroManager] Server failed to start in time");
 		return false;
+	}
+
+	async ensureAxsAvailable() {
+		const axsPath = `${this.filesDir}/axs`;
+		if (await this.manager.fileExists(axsPath)) {
+			return axsPath;
+		}
+
+		if (await this.manager.fileExists(axsPath, true)) {
+			return axsPath;
+		}
+
+		try {
+			await Executor.execute(`
+if [ "$FDROID" != "true" ] && [ -f "$NATIVE_DIR/libaxs.so" ]; then
+  rm -f "$PREFIX/axs"
+  ln -s "$NATIVE_DIR/libaxs.so" "$PREFIX/axs"
+fi
+`);
+		} catch (error) {
+			console.warn("[DistroManager] Failed to refresh AXS symlink:", error);
+		}
+
+		if (await this.manager.fileExists(axsPath)) {
+			return axsPath;
+		}
+		if (await this.manager.fileExists(axsPath, true)) {
+			return axsPath;
+		}
+		return null;
 	}
 
 	async showLaunchLog(distroId) {

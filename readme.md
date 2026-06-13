@@ -6,6 +6,7 @@ Manage and install multiple Linux distributions in Acode easily through a beauti
 
 - **Sidebar Control Panel**: Fully integrated Preact UI sidebar app panel mapping to Acode's active theme colors automatically.
 - **Multiple Distro Support**: Install and manage multiple Linux distributions side-by-side on separate PTY ports.
+- **Not Slow**: It will be as fast as the built-in acode terminal is.
 - **Intelligent Split Launch Button**:
   - Launch with one click using your default terminal type.
   - Click the arrow dropdown to open Acode's native terminal selector and set/switch your default terminal preference (persists across restarts).

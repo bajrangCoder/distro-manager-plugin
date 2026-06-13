@@ -3,7 +3,7 @@
 	"id": "acode.distro.manager",
 	"name": "Distro Manager",
 	"main": "main.js",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"repository": "https://github.com/Acode-Foundation/acode-plugin.git",
 	"icon": "icon.jpg",
 	"minVersionCode": 963,
